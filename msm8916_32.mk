@@ -162,7 +162,6 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     init.target.rc \
     init.qcom.bt.sh \
-    init.qcom.fm.sh \
     init.qcom.early_boot.sh \
     init.qcom.post_boot.sh \
     init.qcom.rc \
@@ -258,6 +257,10 @@ PRODUCT_PROPERTY_OVERRIDES += \
 
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
     camera2.portability.force_api=1
+
+# IO Scheduler
++PRODUCT_PROPERTY_OVERRIDES += \
+    sys.io.scheduler=row
 
 # Inherit proprietary blobs
 $(call inherit-product-if-exists, vendor/huawei/cherry/cherry-vendor.mk)
