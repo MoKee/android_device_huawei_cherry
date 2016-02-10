@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2014 The  Linux Foundation. All rights reserved.
+ * Copyright (C) 2014 The Linux Foundation. All rights reserved.
+ * Copyright (C) 2016 The CyanogenMod Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,9 +38,9 @@
 
 static pthread_once_t g_init = PTHREAD_ONCE_INIT;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
-
 static struct light_state_t g_notification;
 static struct light_state_t g_battery;
+static int g_attention = 0;
 
 char const*const RED_LED_FILE
         = "/sys/class/leds/red/brightness";
@@ -53,6 +54,33 @@ char const*const BLUE_LED_FILE
 char const*const LCD_FILE
         = "/sys/class/leds/lcd-backlight/brightness";
 
+char const*const RED_BLINK_FILE
+        = "/sys/class/leds/red/blink";
+
+char const*const GREEN_BLINK_FILE
+        = "/sys/class/leds/green/blink";
+
+char const*const BLUE_BLINK_FILE
+        = "/sys/class/leds/blue/blink";
+
+char const*const RED_BLINK_ONMS_FILE
+        = "/sys/class/leds/red/onMS";
+
+char const*const GREEN_BLINK_ONMS_FILE
+        = "/sys/class/leds/green/onMS";
+
+char const*const BLUE_BLINK_ONMS_FILE
+        = "/sys/class/leds/blue/onMS";
+
+char const*const RED_BLINK_OFFMS_FILE
+        = "/sys/class/leds/red/offMS";
+
+char const*const GREEN_BLINK_OFFMS_FILE
+        = "/sys/class/leds/green/offMS";
+
+char const*const BLUE_BLINK_OFFMS_FILE
+        = "/sys/class/leds/blue/offMS";
+
 /**
  * device methods
  */
@@ -61,9 +89,6 @@ void init_globals(void)
 {
     // init the mutex
     pthread_mutex_init(&g_lock, NULL);
-
-    memset(&g_battery, 0, sizeof(g_battery));
-    memset(&g_notification, 0, sizeof(g_notification));
 }
 
 static int
@@ -75,7 +100,7 @@ write_int(char const* path, int value)
     fd = open(path, O_RDWR);
     if (fd >= 0) {
         char buffer[20];
-        int bytes = sprintf(buffer, "%d\n", value);
+        int bytes = snprintf(buffer, sizeof(buffer), "%d\n", value);
         ssize_t amt = write(fd, buffer, (size_t)bytes);
         close(fd);
         return amt == -1 ? -errno : 0;
@@ -117,35 +142,74 @@ set_light_backlight(struct light_device_t* dev,
     return err;
 }
 
-/**
- * There is a sperate gpio per led. Each with a maximum brightness of 20.
- * The normal rgb values are computed on a scale up to 255 so we divide them
- * by 12.75 so that varied brightness per led is spread out evenly per color.
- * The led is only optimal on absolute red, green or blue, and produces artifacts
- * of two different colors appearing at once when more than one is active, but
- * this is very limiting so ultimately we allow the end user full control.
- **/
 static int
 set_speaker_light_locked(struct light_device_t* dev,
         struct light_state_t const* state)
 {
-    unsigned int colorRGB = state->color;
-    int red = 0;
-    int green = 0;
-    int blue = 0;
+    int red, green, blue;
+    int blink;
+    int onMS, offMS;
+    unsigned int colorRGB;
 
-    red = (((colorRGB >> 16) & 0xFF) / 12.75);
-    green = (((colorRGB >> 8) & 0xFF) / 12.75);
-    blue = ((colorRGB & 0xFF) / 12.75);
+    if(!dev) {
+        return -1;
+    }
 
-    write_int(RED_LED_FILE, red);
-    write_int(GREEN_LED_FILE, green);
-    write_int(BLUE_LED_FILE, blue);
+    switch (state->flashMode) {
+        case LIGHT_FLASH_TIMED:
+            onMS = state->flashOnMS;
+            offMS = state->flashOffMS;
+            break;
+        case LIGHT_FLASH_NONE:
+        default:
+            onMS = 0;
+            offMS = 0;
+            break;
+    }
+
+    colorRGB = state->color;
 
 #if 0
-    ALOGD("set_speaker_light_locked colorRGB=%08X, red=%d, green=%d, blue=%d\n",
-            colorRGB, red, green, blue);
+    ALOGD("set_speaker_light_locked mode %d, colorRGB=%08X, onMS=%d, offMS=%d\n",
+            state->flashMode, colorRGB, onMS, offMS);
 #endif
+
+    red = (colorRGB >> 16) & 0xFF;
+    green = (colorRGB >> 8) & 0xFF;
+    blue = colorRGB & 0xFF;
+
+    if (onMS > 0 && offMS > 0) {
+        blink = 1;
+    } else {
+        blink = 0;
+    }
+
+    // reset blink status
+    write_int(RED_BLINK_FILE, 0);
+    write_int(GREEN_BLINK_FILE, 0);
+    write_int(BLUE_BLINK_FILE, 0);
+
+    if (blink) {
+        write_int(RED_LED_FILE, 0);
+        write_int(GREEN_LED_FILE, 0);
+        write_int(BLUE_LED_FILE, 0);
+        write_int(RED_BLINK_ONMS_FILE, onMS);
+        write_int(GREEN_BLINK_ONMS_FILE, onMS);
+        write_int(BLUE_BLINK_ONMS_FILE, onMS);
+        write_int(RED_BLINK_OFFMS_FILE, offMS);
+        write_int(GREEN_BLINK_OFFMS_FILE, offMS);
+        write_int(BLUE_BLINK_OFFMS_FILE, offMS);
+        if (red)
+            write_int(RED_BLINK_FILE, blink);
+        if (green)
+            write_int(GREEN_BLINK_FILE, blink);
+        if (blue)
+            write_int(BLUE_BLINK_FILE, blink);
+    } else {
+        write_int(RED_LED_FILE, red);
+        write_int(GREEN_LED_FILE, green);
+        write_int(BLUE_LED_FILE, blue);
+    }
 
     return 0;
 }
@@ -161,6 +225,17 @@ handle_speaker_battery_locked(struct light_device_t* dev)
 }
 
 static int
+set_light_battery(struct light_device_t* dev,
+        struct light_state_t const* state)
+{
+    pthread_mutex_lock(&g_lock);
+    g_battery = *state;
+    handle_speaker_battery_locked(dev);
+    pthread_mutex_unlock(&g_lock);
+    return 0;
+}
+
+static int
 set_light_notifications(struct light_device_t* dev,
         struct light_state_t const* state)
 {
@@ -172,11 +247,15 @@ set_light_notifications(struct light_device_t* dev,
 }
 
 static int
-set_light_battery(struct light_device_t* dev,
+set_light_attention(struct light_device_t* dev,
         struct light_state_t const* state)
 {
     pthread_mutex_lock(&g_lock);
-    g_battery = *state;
+    if (state->flashMode == LIGHT_FLASH_HARDWARE) {
+        g_attention = state->flashOnMS;
+    } else if (state->flashMode == LIGHT_FLASH_NONE) {
+        g_attention = 0;
+    }
     handle_speaker_battery_locked(dev);
     pthread_mutex_unlock(&g_lock);
     return 0;
@@ -208,16 +287,22 @@ static int open_lights(const struct hw_module_t* module, char const* name,
 
     if (0 == strcmp(LIGHT_ID_BACKLIGHT, name))
         set_light = set_light_backlight;
-    else if (0 == strcmp(LIGHT_ID_NOTIFICATIONS, name))
-        set_light = set_light_notifications;
     else if (0 == strcmp(LIGHT_ID_BATTERY, name))
         set_light = set_light_battery;
+    else if (0 == strcmp(LIGHT_ID_NOTIFICATIONS, name))
+        set_light = set_light_notifications;
+    else if (0 == strcmp(LIGHT_ID_ATTENTION, name))
+        set_light = set_light_attention;
     else
         return -EINVAL;
 
     pthread_once(&g_init, init_globals);
 
     struct light_device_t *dev = malloc(sizeof(struct light_device_t));
+
+    if(!dev)
+        return -ENOMEM;
+
     memset(dev, 0, sizeof(*dev));
 
     dev->common.tag = HARDWARE_DEVICE_TAG;
@@ -242,7 +327,7 @@ struct hw_module_t HAL_MODULE_INFO_SYM = {
     .version_major = 1,
     .version_minor = 0,
     .id = LIGHTS_HARDWARE_MODULE_ID,
-    .name = "shamu lights module",
-    .author = "Google, Inc.",
+    .name = "cherry lights Module",
+    .author = "Google, Inc., dianlujitao",
     .methods = &lights_module_methods,
 };
