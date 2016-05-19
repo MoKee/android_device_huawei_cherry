@@ -69,7 +69,7 @@ BOARD_CHARGER_DISABLE_INIT_BLANK := true
 BOARD_CHARGER_ENABLE_SUSPEND := true
 BOARD_HAL_STATIC_LIBRARIES += libhealthd.msm8916
 
-# CMHW
+# MKHW
 BOARD_HARDWARE_CLASS := \
     hardware/mokee/mkhw \
     $(LOCAL_PATH)/mkhw
