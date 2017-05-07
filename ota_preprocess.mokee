@@ -17,13 +17,16 @@
 #
 
 SCRIPT=$ANDROID_BUILD_TOP/device/huawei/cherry/releasetools/device_check.sh
-FILES=("system/app/QNfc"
+FILES=("system/vendor/app/QNfc"
+"system/vendor/app/GsmaNfcService"
 "system/priv-app/Tag"
 "system/etc/*nfc*"
 "system/etc/permissions/*nfc*"
+"system/etc/permissions/*gsma*"
 "system/framework/*nfc*"
-"system/lib/*nfc*"
-"system/vendor/lib/*nfc*")
+"system/framework/*gsma*"
+"system/vendor/lib/*nfc*"
+"system/vendor/lib/hw/nfc_nci.qc199x.default.so")
 
 if [ -f $SCRIPT ];then
 	cp $SCRIPT out/
