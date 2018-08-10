@@ -1,5 +1,6 @@
 #
 # Copyright (C) 2016 The CyanogenMod Project
+# Copyright (C) 2018 The LineageOS Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-$(call inherit-product-if-exists, vendor/huawei/cherry/cherry-vendor.mk)
+$(call inherit-product, vendor/huawei/cherry/cherry-vendor.mk)
 
 # NFC
+PRODUCT_PACKAGES += \
+    android.hardware.nfc@1.0-impl-qc199x
+
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/nfc-nci.conf:system/etc/nfc-nci.conf \
+    $(LOCAL_PATH)/configs/nfc-nci.conf:$(TARGET_COPY_OUT_VENDOR)/etc/nfc-nci.conf \
     $(LOCAL_PATH)/releasetools/device_check.sh:install/bin/device_check.sh
 
 $(call inherit-product, device/huawei/msm8916-common/msm8916.mk)
