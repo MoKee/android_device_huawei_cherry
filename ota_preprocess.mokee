@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (C) 2015-2016 The MoKee Open Source Project
+# Copyright (C) 2015-2018 The MoKee Open Source Project
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,16 +17,7 @@
 #
 
 SCRIPT=$ANDROID_BUILD_TOP/device/huawei/cherry/releasetools/device_check.sh
-FILES=("system/vendor/app/QNfc"
-"system/vendor/app/GsmaNfcService"
-"system/priv-app/Tag"
-"system/etc/*nfc*"
-"system/etc/permissions/*nfc*"
-"system/etc/permissions/*gsma*"
-"system/framework/*nfc*"
-"system/framework/*gsma*"
-"system/vendor/lib/*nfc*"
-"system/vendor/lib/hw/nfc_nci.qc199x.default.so")
+FILES=("system/vendor/etc/permissions/android.hardware.nfc.xml")
 
 if [ -f $SCRIPT ];then
 	cp $SCRIPT out/
